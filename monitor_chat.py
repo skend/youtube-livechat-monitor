@@ -1,12 +1,12 @@
 import os
 import json
 import time
+import pymongo
 
 import googleapiclient.discovery
 
 # no fault tolerance lolololol
-
-messages = []
+# magic numbers ftw!!! poggers
 
 def get_api_key():
     with open("client_secrets.json") as f:
@@ -15,7 +15,22 @@ def get_api_key():
     return None
 
 
+def get_collection():
+    conn_str = "mongodb://localhost:27017"
+    client = pymongo.MongoClient(conn_str, serverSelectionTimeoutMS=5000)
+
+    try:
+        client.server_info()
+        print("Successfully connected to local mongo instance")
+    except Exception:
+        print("Unable to connect to the server.")
+
+    db = client["db"]
+    return db["messages"]
+
+
 def main():
+    collection = get_collection()
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     api_service_name = "youtube"
@@ -30,19 +45,27 @@ def main():
 
     if livestream_id != None:
         chat_id = get_chat_id(youtube, livestream_id)
-        monitor_chat(youtube, chat_id)
+        monitor_chat(youtube, chat_id, collection)
 
 
-def monitor_chat(youtube, chat_id, page_token=None):
+def monitor_chat(youtube, chat_id, collection, page_token=None):
     request = youtube.liveChatMessages().list(
         liveChatId=chat_id,
         part="snippet",
         pageToken=page_token
     )
     response = request.execute()
-
     next_page_token = response['nextPageToken']
-    for item in response['items']:
+
+    write_messages_to_db(response['items'])
+
+    time.sleep(10)
+    monitor_chat(youtube, chat_id, collection, page_token=next_page_token)
+
+
+def write_messages_to_db(items, collection):
+    messages = []
+    for item in items:
         messages.append(
             {   
                 'timestamp': item['snippet']['publishedAt'], 
@@ -50,14 +73,11 @@ def monitor_chat(youtube, chat_id, page_token=None):
                 'content': item['snippet']['displayMessage']
             }
         )
-    
-    #todo: do some memes here
-    if len(messages) > 5:
-        with open("output.json", "a") as f:
-            f.write(json.dumps(messages))
 
-    time.sleep(10)
-    monitor_chat(youtube, chat_id, page_token=next_page_token)
+    if len(messages) > 0:
+        obj = collection.insert_many(messages)
+        print('Inserted the following:')
+        print(obj.inserted_ids)
 
 
 
