@@ -11,6 +11,5 @@ Requires a 'client_secrets.json' file in the same directory. Contents of this fi
 Also run mongodb
 
 ```
-docker pull mongo
-docker run --rm -p 27017:27017 mongo:latest
+docker-compose up
 ```
