@@ -49,8 +49,8 @@ def monitor_channel(youtube, channel_id):
         db = get_db()
         monitor_chat(youtube, chat_id, db[constants.CHANNEL_NAME], db[constants.CHANNEL_NAME + "_users"])
     else:
-        print("This channel is offline. Trying again in 30 seconds")
-        time.sleep(30)
+        print("This channel is offline. Trying again in {} seconds".format(constants.SECONDS_BETWEEN_LIVE_QUERY))
+        time.sleep(constants.SECONDS_BETWEEN_LIVE_QUERY)
         monitor_channel(youtube, channel_id)
 
 
@@ -65,7 +65,7 @@ def monitor_chat(youtube, chat_id, coll_messages, coll_users, page_token=None):
 
     write_data_to_db(response['items'], coll_messages, coll_users)
 
-    time.sleep(10)
+    time.sleep(constants.SECONDS_BETWEEN_CHAT_QUERY)
     monitor_chat(youtube, chat_id, coll_messages, coll_users, page_token=next_page_token)
 
 

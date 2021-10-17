@@ -13,3 +13,6 @@ Also run mongodb
 ```
 docker-compose up
 ```
+
+
+probably abandoning because of api limits :(
