@@ -39,12 +39,19 @@ def main():
         api_service_name, api_version, developerKey=DEVELOPER_KEY)
 
     channel_id = constants.CHANNEL_ID if constants.CHANNEL_ID != None else get_youtube_channel_id(youtube)
-    livestream_id = get_livestream_id(youtube, channel_id)
+    monitor_channel(youtube, channel_id)
 
-    if livestream_id != None:
+
+def monitor_channel(youtube, channel_id):
+    is_live, livestream_id = is_channel_live(youtube, channel_id)
+    if is_live:
         chat_id = get_chat_id(youtube, livestream_id)
         db = get_db()
         monitor_chat(youtube, chat_id, db[constants.CHANNEL_NAME], db[constants.CHANNEL_NAME + "_users"])
+    else:
+        print("This channel is offline. Trying again in 30 seconds")
+        time.sleep(30)
+        monitor_channel(youtube, channel_id)
 
 
 def monitor_chat(youtube, chat_id, coll_messages, coll_users, page_token=None):
@@ -122,15 +129,7 @@ def get_youtube_channel_id(youtube):
     return response['items'][0]['id']
 
 
-def get_livestream_id(youtube, channel_id):
-    is_live, livestream_id = channel_is_live(youtube, channel_id)
-    if is_live:
-        return livestream_id
-
-    return None
-
-
-def channel_is_live(youtube, channel_id):
+def is_channel_live(youtube, channel_id):
     request = youtube.search().list(
         part="snippet",
         channelId=channel_id,
@@ -140,8 +139,13 @@ def channel_is_live(youtube, channel_id):
     )
     response = request.execute()
 
-    return response['pageInfo']['totalResults'] > 0, \
+    is_live = response['pageInfo']['totalResults']
+
+    if is_live:
+        return response['pageInfo']['totalResults'] > 0, \
            response['items'][0]['id']['videoId']
+    else:
+        return False, None
 
 
 if __name__ == "__main__":
